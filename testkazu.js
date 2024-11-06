@@ -1,1 +1,115 @@
-function m(o){window.enmity.plugins.registerPlugin(o)}function i(...o){return window.enmity.modules.getByProps(...o)}window.enmity.modules.common,window.enmity.modules.common.Constants,window.enmity.modules.common.Clipboard,window.enmity.modules.common.Assets,window.enmity.modules.common.Messages,window.enmity.modules.common.Clyde,window.enmity.modules.common.Avatars,window.enmity.modules.common.Native,window.enmity.modules.common.React,window.enmity.modules.common.Dispatcher,window.enmity.modules.common.Storage;const t=window.enmity.modules.common.Toasts;window.enmity.modules.common.Dialog,window.enmity.modules.common.Token,window.enmity.modules.common.REST,window.enmity.modules.common.Settings,window.enmity.modules.common.Users,window.enmity.modules.common.Navigation,window.enmity.modules.common.NavigationNative,window.enmity.modules.common.NavigationStack,window.enmity.modules.common.Theme,window.enmity.modules.common.Linking,window.enmity.modules.common.StyleSheet,window.enmity.modules.common.ColorMap,window.enmity.modules.common.Components,window.enmity.modules.common.Locale,window.enmity.modules.common.Profiles,window.enmity.modules.common.Lodash,window.enmity.modules.common.Logger,window.enmity.modules.common.Flux,window.enmity.modules.common.SVG,window.enmity.modules.common.Scenes,window.enmity.modules.common.Moment;function d(o){return window.enmity.assets.getIDByName(o)}function s(o){return window.enmity.patcher.create(o)}var w="FakeProfileThemesAndEffects",c="1.0.0",l="Allows profile theming and the usage of profile effects by hiding the colors and effect ID in your About Me using invisible, zero-width characters",u=[{name:"EquicordDevs.ryan",id:"1234567890"}],r="#00007d",a="https://github.com/Vendicated/FakeProfileThemesAndEffects",y={name:w,version:c,description:l,authors:u,color:r,sourceUrl:a};const n=s("FakeProfileThemesAndEffects"),g=i("openLazy","hideActionSheet");function h(o){console.log("[FakeProfileThemesAndEffects] Found ActionSheet: "+o),t.open({content:"[FakeProfileThemesAndEffects] Found ActionSheet: "+o,icon:d("Check")})}const S={...y,onStart(){console.log("[FakeProfileThemesAndEffects] Hello world!"),n.before(g,"openLazy",(o,[p,e])=>h(e))},onStop(){n.unpatchAll()}};m(S);
+// FakeProfileThemesAndEffects.js
+/**
+ * FakeProfileThemesAndEffects - A BetterDiscord plugin to enable profile theming and effects.
+ * Based on Vencord plugin with adaptations for BetterDiscord.
+ * 
+ * Author: Adapted for BetterDiscord
+ * License: GPL-3.0-or-later
+ */
+
+const { PluginUtilities, WebpackModules, Patcher } = BdApi;
+const { React, ReactDOM } = BdApi;
+
+const ProfileEffectStore = WebpackModules.getByProps("profileEffects");
+const UserProfileStore = WebpackModules.getByProps("getUserProfile");
+
+module.exports = class FakeProfileThemesAndEffects {
+    constructor() {
+        this.name = "FakeProfileThemesAndEffects";
+        this.description = "Allows profile theming and the usage of profile effects using invisible, zero-width characters.";
+        this.version = "1.0.0";
+        this.author = "Adapted for BetterDiscord";
+    }
+
+    onStart() {
+        // Apply patches on plugin start
+        this.patchUserProfile();
+        this.patchProfileCustomizationPreview();
+        this.patchProfileEffectModal();
+        this.patchProfileEffectSelection();
+        this.patchProfileEffectPreview();
+        PluginUtilities.showToast(`${this.name} has started!`);
+    }
+
+    onStop() {
+        // Remove all patches on stop
+        Patcher.unpatchAll();
+        PluginUtilities.showToast(`${this.name} has stopped.`);
+    }
+
+    patchUserProfile() {
+        // Patch UserProfileStore.getUserProfile to apply decoding
+        Patcher.before(UserProfileStore, "getUserProfile", (_, args, result) => {
+            this.decodeAboutMeFPTEHook(result);
+        });
+    }
+
+    patchProfileCustomizationPreview() {
+        // Patch ProfileCustomizationPreview for adding profile preview hook
+        const ProfileCustomizationPreview = WebpackModules.getModule(m => m.default?.toString().includes("EDIT_PROFILE_BANNER"));
+        Patcher.before(ProfileCustomizationPreview, "default", (_, [props]) => {
+            this.profilePreviewHook(props);
+        });
+    }
+
+    patchProfileEffectModal() {
+        // Patch ProfileEffectModal for modified profile effect selections
+        const ProfileEffectModal = WebpackModules.getModule(m => m.initialSelectedProfileEffectId);
+        if (ProfileEffectModal) {
+            Patcher.before(ProfileEffectModal, "initialSelectedProfileEffectId", (_, [props]) => {
+                props.onApply = (effectId) => this.onApplyEffect(effectId);
+            });
+        }
+    }
+
+    patchProfileEffectSelection() {
+        // Patch for ProfileEffectSelection and sections
+        const ProfileEffectSelection = WebpackModules.getModule(m => m.presetEffectBackground);
+        if (ProfileEffectSelection) {
+            Patcher.after(ProfileEffectSelection, "default", (_, [props], returnValue) => {
+                this.useProfileEffectSections(returnValue);
+            });
+        }
+    }
+
+    patchProfileEffectPreview() {
+        // Patch ProfileEffectPreview to add missing properties
+        const ProfileEffectPreview = WebpackModules.getModule(m => m.effectDescriptionContainer);
+        if (ProfileEffectPreview) {
+            Patcher.before(ProfileEffectPreview, "default", (_, args) => {
+                args[0].forProfileEffectModal = true;
+            });
+        }
+    }
+
+    decodeAboutMeFPTEHook(profile) {
+        // Hook to decode AboutMe field for FPTE effects
+        if (profile?.aboutMe) {
+            profile.aboutMe = profile.aboutMe.replace(/<zero-width chars regex>/g, "");
+        }
+    }
+
+    profilePreviewHook(props) {
+        // Profile preview functionality placeholder
+        console.log("Profile preview hook applied.");
+    }
+
+    onApplyEffect(effectId) {
+        // Apply profile effect by ID
+        const effect = ProfileEffectStore.getProfileEffectById(effectId);
+        if (effect) {
+            // Apply the effect (placeholder)
+            console.log("Applying effect: ", effect);
+        }
+    }
+
+    useProfileEffectSections(sections) {
+        // Modify profile effect sections for customization
+        sections.splice(1); // Example customization
+        sections[0].items.splice(1);
+        for (const effect of ProfileEffectStore.profileEffects) {
+            sections[0].items.push(new ProfileEffectRecord(effect));
+        }
+        return sections;
+    }
+};
